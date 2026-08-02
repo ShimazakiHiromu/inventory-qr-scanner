@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071a35">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>棚卸QRリーダー</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; background: #071a35; color: #fff; }
+    button, input { font: inherit; }
+    button { touch-action: manipulation; }
+    .shell { width: min(42rem, 100%); min-height: 100dvh; margin: auto; padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); display: flex; flex-direction: column; }
+    .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .head strong { font-size: 1.08rem; }
+    .close { width: 44px; height: 44px; border: 1px solid #6f89ad; border-radius: 10px; background: #fff; color: #102642; font-size: 1.4rem; }
+    .status { min-height: 3.2em; margin: 0 0 12px; color: #cfdbec; line-height: 1.55; }
+    .reader { position: relative; min-height: 54dvh; overflow: hidden; border: 2px solid #78a7ed; border-radius: 16px; background: #020813; display: grid; place-items: center; }
+    .reader-surface { width: 100%; min-height: inherit; display: grid; place-items: center; }
+    .reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    .reader img { max-width: 100% !important; max-height: 54dvh !important; object-fit: contain; }
+    .guide { position: absolute; z-index: 2; width: min(72%, 18rem); aspect-ratio: 1; border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 999px #00142d55; pointer-events: none; }
+    .reader:has(video) .placeholder { display: none; }
+    .placeholder { max-width: 17rem; padding: 24px; color: #9eb2ce; text-align: center; line-height: 1.7; }
+    .result { position: fixed; z-index: 20; inset: max(70px, env(safe-area-inset-top)) 16px auto; max-width: 38rem; margin: auto; padding: 16px; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; align-items: center; border: 2px solid #31b77d; border-radius: 14px; background: #e8fbf2; color: #07543b; box-shadow: 0 18px 60px #000a; animation: pop .22s ease-out; }
+    .result[hidden] { display: none; }
+    .result--already { border-color: #d29628; background: #fff7dd; color: #6c4800; }
+    .result--error { grid-template-columns: 1fr; border-color: #d64c43; background: #fff0ee; color: #8f1d14; }
+    .result img { width: 74px; height: 86px; object-fit: contain; }
+    .result--error img { display: none; }
+    .result strong, .result span { display: block; }
+    .result strong { font-size: 1.25rem; }
+    .result span { margin-top: 5px; font-size: .86rem; line-height: 1.5; overflow-wrap: anywhere; }
+    .counter { display: flex; justify-content: space-between; margin-top: 12px; padding: 10px 12px; border-radius: 9px; background: #102c51; color: #c9d7ea; }
+    .counter strong { color: #fff; }
+    .fallback { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .action { min-height: 48px; border: 0; border-radius: 9px; background: #fff; color: #123f8c; font-weight: 800; }
+    .action--secondary { border: 1px solid #6f89ad; background: #102c51; color: #fff; }
+    .manual { margin-top: 14px; color: #cfdbec; }
+    .manual summary { cursor: pointer; font-weight: 700; }
+    .manual-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 10px; }
+    .manual-row input { min-width: 0; height: 46px; border: 0; border-radius: 8px; padding: 0 12px; background: #fff; color: #071a35; }
+    .manual-row button { min-width: 76px; border: 0; border-radius: 8px; background: #78a7ed; color: #071a35; font-weight: 800; }
+    .help { margin: 10px 0 0; color: #9eb2ce; font-size: .82rem; line-height: 1.5; }
+    [hidden] { display: none !important; }
+    @keyframes pop { from { opacity: 0; transform: translateY(-10px) scale(.97); } }
+    @media (max-width: 34rem) { .reader { min-height: 50dvh; } .result { inset-block-start: max(62px, env(safe-area-inset-top)); } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="head">
+      <strong>棚卸QRリーダー</strong>
+      <button id="closeButton" class="close" type="button" aria-label="読取画面を閉じる">×</button>
+    </div>
+    <p id="status" class="status" aria-live="polite">在庫アプリと接続しています…</p>
+    <div id="result" class="result" hidden aria-live="assertive">
+      <img src="seichou-character-128.png" alt="喜んでいるセイチョウ">
+      <div><strong id="resultTitle"></strong><span id="resultVehicle"></span></div>
+    </div>
+    <div class="reader" aria-label="QRコード読取カメラ">
+      <div id="readerSurface" class="reader-surface"><div class="placeholder">カメラが開いたら、QRコードを枠の中へ入れてください。</div></div>
+      <div id="guide" class="guide" hidden></div>
+    </div>
+    <button id="retryButton" class="action" type="button" hidden>もう一度カメラを許可する</button>
+    <div class="fallback">
+      <button id="photoButton" class="action action--secondary" type="button">QRを撮影して照合</button>
+      <button id="cameraButton" class="action action--secondary" type="button">カメラを再起動</button>
+    </div>
+    <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+    <div class="counter"><span>この画面での照合</span><strong><span id="sessionCount">0</span>台</strong></div>
+    <details class="manual">
+      <summary>カメラが使えない場合</summary>
+      <div class="manual-row"><input id="manualInput" type="text" inputmode="url" placeholder="QRのURLまたはトークン"><button id="manualButton" type="button">照合</button></div>
+      <p class="help">この画面には車両台帳やパスコードを保存していません。照合はログイン済みの在庫アプリで行います。</p>
+    </details>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const hash = new URLSearchParams(location.hash.slice(1));
+    const nonce = hash.get("nonce") || "";
+    history.replaceState(null, "", location.pathname + location.search);
+    let scanner = null;
+    let liveCamera = false;
+    let processing = false;
+    let responseTimer = null;
+
+    function connected() {
+      return Boolean(window.opener && !window.opener.closed && /^[a-z0-9]{16,100}$/i.test(nonce));
+    }
+    function send(message) {
+      if (!connected()) return false;
+      window.opener.postMessage(Object.assign({}, message, { nonce: nonce }), "*");
+      return true;
+    }
+    function setStatus(message) { $("status").textContent = message; }
+    async function stopCamera() {
+      if (!scanner) return;
+      try { if (liveCamera) await scanner.stop(); } catch (_) {}
+      try { await scanner.clear(); } catch (_) {}
+      scanner = null;
+      liveCamera = false;
+      $("guide").hidden = true;
+    }
+    function onDecoded(value) {
+      if (processing || !value) return;
+      processing = true;
+      try { if (liveCamera && scanner && scanner.pause) scanner.pause(true); } catch (_) {}
+      setStatus("車両情報と照合しています…");
+      if (!send({ type: "inventory-scanner-scan", value: String(value) })) {
+        showLocalError("在庫アプリとの接続が切れました", "在庫アプリに戻り、もう一度「QRを読み込む」から開いてください。");
+        return;
+      }
+      clearTimeout(responseTimer);
+      responseTimer = setTimeout(() => {
+        showLocalError("照合結果を受信できませんでした", "通信状態を確認し、在庫アプリから読取画面を開き直してください。");
+      }, 10000);
+    }
+    function showLocalError(title, detail) {
+      clearTimeout(responseTimer);
+      const box = $("result");
+      box.className = "result result--error";
+      $("resultTitle").textContent = title;
+      $("resultVehicle").textContent = detail;
+      box.hidden = false;
+      setStatus("下の再起動・撮影・手入力も利用できます。");
+      processing = false;
+      $("retryButton").hidden = false;
+    }
+    async function startCamera() {
+      clearTimeout(responseTimer);
+      $("result").hidden = true;
+      $("retryButton").hidden = true;
+      processing = false;
+      if (!connected()) {
+        showLocalError("在庫アプリと接続できません", "このURLを直接開かず、在庫アプリの「QRを読み込む」から起動してください。");
+        return;
+      }
+      if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showLocalError("この画面ではライブカメラを利用できません", "「QRを撮影して照合」を押すとiPhoneのカメラで読み取れます。");
+        return;
+      }
+      if (!window.Html5Qrcode) {
+        showLocalError("QR読取機能を読み込めませんでした", "通信状態を確認して「カメラを再起動」を押してください。");
+        return;
+      }
+      await stopCamera();
+      setStatus("ブラウザの確認でカメラを「許可」してください。");
+      try {
+        scanner = new Html5Qrcode("readerSurface", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: (width, height) => { const size = Math.floor(Math.min(width, height) * .72); return { width: size, height: size }; } },
+          onDecoded,
+          () => {}
+        );
+        liveCamera = true;
+        $("guide").hidden = false;
+        setStatus("QRコードを枠内に入れてください。読み取ると自動で照合します。");
+      } catch (error) {
+        await stopCamera();
+        const denied = /NotAllowed|Permission|permission|denied/i.test(String(error && (error.name || error.message) || error));
+        showLocalError(
+          denied ? "カメラが許可されませんでした" : "カメラを起動できませんでした",
+          denied ? "下のボタンからもう一度許可するか、「QRを撮影して照合」を使ってください。" : "「QRを撮影して照合」ならiPhoneのカメラを直接開けます。"
+        );
+      }
+    }
+    async function scanPhoto(file) {
+      if (!file || !window.Html5Qrcode) return;
+      clearTimeout(responseTimer);
+      await stopCamera();
+      $("result").hidden = true;
+      processing = false;
+      setStatus("撮影したQRコードを読み取っています…");
+      try {
+        scanner = new Html5Qrcode("readerSurface", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
+        const value = await scanner.scanFile(file, true);
+        await scanner.clear();
+        scanner = null;
+        onDecoded(value);
+      } catch (_) {
+        await stopCamera();
+        showLocalError("QRコードを読み取れませんでした", "QR全体が明るく大きく写るように、もう一度撮影してください。");
+      } finally {
+        $("photoInput").value = "";
+      }
+    }
+    function resume() {
+      clearTimeout(responseTimer);
+      $("result").hidden = true;
+      processing = false;
+      if (liveCamera && scanner && scanner.resume) {
+        try { scanner.resume(); } catch (_) {}
+        setStatus("QRコードを枠内に入れてください。読み取ると自動で照合します。");
+      } else {
+        setStatus("次のQRを撮影するか、カメラを再起動してください。");
+      }
+    }
+    async function closeReader() {
+      send({ type: "inventory-scanner-close" });
+      await stopCamera();
+      window.close();
+      if (!window.closed && history.length > 1) history.back();
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.source !== window.opener) return;
+      const message = event.data || {};
+      if (message.nonce !== nonce) return;
+      if (message.type === "inventory-scanner-config" || message.type === "inventory-scanner-count") {
+        $("sessionCount").textContent = String(Number(message.count) || 0);
+      } else if (message.type === "inventory-scanner-status") {
+        setStatus(String(message.message || "照合しています…"));
+      } else if (message.type === "inventory-scanner-result") {
+        clearTimeout(responseTimer);
+        const kind = ["success", "already", "error"].includes(message.kind) ? message.kind : "error";
+        const box = $("result");
+        box.className = "result result--" + kind;
+        $("resultTitle").textContent = String(message.title || "照合結果");
+        $("resultVehicle").textContent = String(message.detail || "");
+        $("sessionCount").textContent = String(Number(message.count) || 0);
+        box.hidden = false;
+        setStatus(kind === "error" ? "QRコードを確認してください。続けて読み取れます。" : "このまま次の車両を続けて読み取れます。");
+        if (kind !== "error" && navigator.vibrate) navigator.vibrate([80, 45, 120]);
+      } else if (message.type === "inventory-scanner-resume") {
+        resume();
+      }
+    });
+    $("closeButton").addEventListener("click", closeReader);
+    $("retryButton").addEventListener("click", startCamera);
+    $("cameraButton").addEventListener("click", startCamera);
+    $("photoButton").addEventListener("click", () => $("photoInput").click());
+    $("photoInput").addEventListener("change", (event) => scanPhoto(event.target.files && event.target.files[0]));
+    $("manualButton").addEventListener("click", () => onDecoded($("manualInput").value.trim()));
+    $("manualInput").addEventListener("keydown", (event) => { if (event.key === "Enter") onDecoded(event.target.value.trim()); });
+    window.addEventListener("pagehide", () => { send({ type: "inventory-scanner-close" }); void stopCamera(); });
+
+    if (connected()) {
+      send({ type: "inventory-scanner-ready" });
+      void startCamera();
+    } else {
+      showLocalError("在庫アプリと接続できません", "在庫アプリの「QRを読み込む」から、この画面を開いてください。");
+    }
+  </script>
+</body>
+</html>
