@@ -21,7 +21,7 @@
     .reader-surface { width: 100%; min-height: inherit; display: grid; place-items: center; }
     .reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
     .reader img { max-width: 100% !important; max-height: 54dvh !important; object-fit: contain; }
-    .guide { position: absolute; z-index: 2; width: min(72%, 18rem); aspect-ratio: 1; border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 999px #00142d55; pointer-events: none; }
+    .guide { position: absolute; z-index: 2; width: min(82%, 21rem); aspect-ratio: 1; border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 999px #00142d44; pointer-events: none; }
     .reader:has(video) .placeholder { display: none; }
     .placeholder { max-width: 17rem; padding: 24px; color: #9eb2ce; text-align: center; line-height: 1.7; }
     .result { position: fixed; z-index: 20; inset: max(70px, env(safe-area-inset-top)) 16px auto; max-width: 38rem; margin: auto; padding: 16px; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; align-items: center; border: 2px solid #31b77d; border-radius: 14px; background: #e8fbf2; color: #07543b; box-shadow: 0 18px 60px #000a; animation: pop .22s ease-out; }
@@ -150,10 +150,10 @@
       await stopCamera();
       setStatus("ブラウザの確認でカメラを「許可」してください。");
       try {
-        scanner = new Html5Qrcode("readerSurface", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
+        scanner = new Html5Qrcode("readerSurface", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: (width, height) => { const size = Math.floor(Math.min(width, height) * .72); return { width: size, height: size }; } },
+          { fps: 16, disableFlip: true, qrbox: (width, height) => { const size = Math.floor(Math.min(width, height) * .82); return { width: size, height: size }; } },
           onDecoded,
           () => {}
         );
@@ -177,7 +177,7 @@
       processing = false;
       setStatus("撮影したQRコードを読み取っています…");
       try {
-        scanner = new Html5Qrcode("readerSurface", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
+        scanner = new Html5Qrcode("readerSurface", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
         const value = await scanner.scanFile(file, true);
         await scanner.clear();
         scanner = null;
