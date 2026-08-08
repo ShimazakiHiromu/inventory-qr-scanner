@@ -82,19 +82,30 @@
     const $ = (id) => document.getElementById(id);
     const hash = new URLSearchParams(location.hash.slice(1));
     const nonce = hash.get("nonce") || "";
+    const returnUrl = new URLSearchParams(location.search).get("return") || "";
+    const NONCE_PATTERN = /^[a-z0-9]{16,100}$/i;
+    const GAS_RETURN_URL_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+    const AUDIT_TOKEN_PATTERN = /^[a-f0-9]{32}$/i;
     history.replaceState(null, "", location.pathname + location.search);
     let scanner = null;
     let liveCamera = false;
     let processing = false;
     let responseTimer = null;
 
+    function hasValidConfig() {
+      return NONCE_PATTERN.test(nonce) && GAS_RETURN_URL_PATTERN.test(returnUrl);
+    }
     function connected() {
-      return Boolean(window.opener && !window.opener.closed && /^[a-z0-9]{16,100}$/i.test(nonce));
+      return Boolean(window.opener && !window.opener.closed && hasValidConfig());
     }
     function send(message) {
       if (!connected()) return false;
-      window.opener.postMessage(Object.assign({}, message, { nonce: nonce }), "*");
-      return true;
+      try {
+        window.opener.postMessage(Object.assign({}, message, { nonce: nonce }), "*");
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
     function setStatus(message) { $("status").textContent = message; }
     async function stopCamera() {
@@ -105,19 +116,41 @@
       liveCamera = false;
       $("guide").hidden = true;
     }
+    function extractAuditToken(value) {
+      let token = String(value || "").trim();
+      try { token = new URL(token).searchParams.get("q") || ""; } catch (_) {}
+      token = token.trim().toLowerCase();
+      return AUDIT_TOKEN_PATTERN.test(token) ? token : "";
+    }
+    function redirectToInventory(token) {
+      if (!hasValidConfig() || !AUDIT_TOKEN_PATTERN.test(token)) return false;
+      try {
+        const target = new URL(returnUrl);
+        target.searchParams.set("q", token);
+        setStatus("在庫アプリへ戻っています…");
+        location.replace(target.href);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
     function onDecoded(value) {
       if (processing || !value) return;
       processing = true;
       try { if (liveCamera && scanner && scanner.pause) scanner.pause(true); } catch (_) {}
       setStatus("車両情報と照合しています…");
-      if (!send({ type: "inventory-scanner-scan", value: String(value) })) {
-        showLocalError("在庫アプリとの接続が切れました", "在庫アプリに戻り、もう一度「QRを読み込む」から開いてください。");
+      if (connected() && send({ type: "inventory-scanner-scan", value: String(value) })) {
+        clearTimeout(responseTimer);
+        responseTimer = setTimeout(() => {
+          showLocalError("照合結果を受信できませんでした", "通信状態を確認し、在庫アプリから読取画面を開き直してください。");
+        }, 10000);
         return;
       }
       clearTimeout(responseTimer);
-      responseTimer = setTimeout(() => {
-        showLocalError("照合結果を受信できませんでした", "通信状態を確認し、在庫アプリから読取画面を開き直してください。");
-      }, 10000);
+      const token = extractAuditToken(value);
+      if (!token || !redirectToInventory(token)) {
+        showLocalError("QRコードを確認できません", "32文字の監査トークンを確認できませんでした。正しいQRを使ってください。");
+      }
     }
     function showLocalError(title, detail) {
       clearTimeout(responseTimer);
@@ -135,8 +168,8 @@
       $("result").hidden = true;
       $("retryButton").hidden = true;
       processing = false;
-      if (!connected()) {
-        showLocalError("在庫アプリと接続できません", "このURLを直接開かず、在庫アプリの「QRを読み込む」から起動してください。");
+      if (!hasValidConfig()) {
+        showLocalError("読取リンクを確認できません", "在庫アプリの「QRを読み込む」から、この画面を開き直してください。");
         return;
       }
       if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -239,11 +272,11 @@
     $("manualInput").addEventListener("keydown", (event) => { if (event.key === "Enter") onDecoded(event.target.value.trim()); });
     window.addEventListener("pagehide", () => { send({ type: "inventory-scanner-close" }); void stopCamera(); });
 
-    if (connected()) {
-      send({ type: "inventory-scanner-ready" });
+    if (hasValidConfig()) {
+      if (connected()) send({ type: "inventory-scanner-ready" });
       void startCamera();
     } else {
-      showLocalError("在庫アプリと接続できません", "在庫アプリの「QRを読み込む」から、この画面を開いてください。");
+      showLocalError("読取リンクを確認できません", "在庫アプリの「QRを読み込む」から、この画面を開き直してください。");
     }
   </script>
 </body>
