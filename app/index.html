@@ -63,16 +63,17 @@
     <section class="card" aria-labelledby="title">
       <p class="brand">新生オート飯能</p>
       <h1 id="title">車両在庫を開きます</h1>
-      <p id="status" class="lead" aria-live="polite">ブラウザで在庫管理を開いています…</p>
+      <p id="status" class="lead" aria-live="polite">この画面では自動で移動しません。下の手順で開いてください。</p>
 
-      <section id="in-app-help" class="help" hidden aria-labelledby="in-app-title">
-        <h2 id="in-app-title">LINE WORKSから開く場合</h2>
-        <p>LINE WORKSのメニューから「ブラウザで開く」を選んでください。この画面をブラウザで開くと、在庫管理へ移動します。</p>
+      <section id="in-app-help" class="help" aria-labelledby="in-app-title">
+        <h2 id="in-app-title">LINE WORKSから開く手順</h2>
+        <p><strong>1.</strong> LINE WORKSの右上メニューから「ブラウザで開く」を選びます。</p>
+        <p><strong>2.</strong> SafariまたはChromeへ切り替わったことを確認し、下のボタンを押します。</p>
       </section>
 
       <div class="fallback">
-        <a id="launch-link" class="launch-link" href="https://script.google.com/macros/s/AKfycbzwYFowd7PcatCXrYhXVBgIKj7T59_HPa6_99UzvdxgSIUUyUoxuoVD2ti69U79EkjiiA/exec">このまま在庫管理を開く</a>
-        <p class="note">自動で開かない場合は、上のボタンをタップしてください。</p>
+        <a id="launch-link" class="launch-link" target="_top" href="https://script.google.com/macros/s/AKfycbzwYFowd7PcatCXrYhXVBgIKj7T59_HPa6_99UzvdxgSIUUyUoxuoVD2ti69U79EkjiiA/exec">在庫管理を開く</a>
+        <p class="note">ボタンを押す前に、LINE WORKSではなくSafariまたはChromeで表示していることを確認してください。</p>
       </div>
     </section>
   </main>
@@ -81,7 +82,6 @@
     (() => {
       const GAS_URL = "https://script.google.com/macros/s/AKfycbzwYFowd7PcatCXrYhXVBgIKj7T59_HPa6_99UzvdxgSIUUyUoxuoVD2ti69U79EkjiiA/exec";
       const status = document.getElementById("status");
-      const inAppHelp = document.getElementById("in-app-help");
 
       function hasLineWorksQueryMarker(search) {
         try {
@@ -103,19 +103,18 @@
         return explicitInApp || androidWebView || iosWebView;
       }
 
-      function openInventory() {
+      function prepareLauncher() {
         if (isInAppWebView(navigator.userAgent, window.location.search)) {
-          status.textContent = "LINE WORKS内では、右上のメニューから「ブラウザで開く」を選んでください。";
-          inAppHelp.hidden = false;
+          status.textContent = "先にLINE WORKSの右上メニューから「ブラウザで開く」を選んでください。";
           return;
         }
-        window.location.replace(GAS_URL);
+        status.textContent = "SafariまたはChromeで表示中です。下の「在庫管理を開く」を押してください。";
       }
 
       if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", openInventory, { once: true });
+        document.addEventListener("DOMContentLoaded", prepareLauncher, { once: true });
       } else {
-        openInventory();
+        prepareLauncher();
       }
     })();
   </script>
