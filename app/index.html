@@ -43,8 +43,7 @@
     .help p { margin: 8px 0 0; }
     .fallback { margin: 20px 0 0; }
     .actions { display: grid; gap: 10px; }
-    .launch-link,
-    .copy-button {
+    .launch-link {
       display: inline-flex;
       min-height: 50px;
       align-items: center;
@@ -61,14 +60,8 @@
       font: inherit;
       cursor: pointer;
     }
-    .copy-button { background: #e5effd; color: #123f8c; }
-    .launch-link:focus-visible,
-    .copy-button:focus-visible { outline: 3px solid #78a7ed; outline-offset: 3px; }
-    .ios-help { margin-top: 20px; padding: 16px; border: 1px solid #f0c36a; border-radius: 12px; background: #fff8e8; color: #533b0d; }
-    .ios-help h2 { margin: 0; font-size: 1.05rem; }
-    .ios-help p { margin: 8px 0 0; }
+    .launch-link:focus-visible { outline: 3px solid #78a7ed; outline-offset: 3px; }
     .note { margin: 12px 0 0; color: #60748d; font-size: .88rem; }
-    .copy-result { min-height: 1.5em; margin: 10px 0 0; color: #17613a; font-size: .92rem; font-weight: 700; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -85,19 +78,10 @@
         <p><strong>2.</strong> SafariまたはChromeへ切り替わったことを確認し、下のボタンを押します。</p>
       </section>
 
-      <section id="ios-help" class="ios-help" aria-labelledby="ios-title" hidden>
-        <h2 id="ios-title">iPhoneで「ファイルを開くことができません」と出る場合</h2>
-        <p><strong>1.</strong> 下の「正規URLをコピー」を押します。</p>
-        <p><strong>2.</strong> Safariを開き、メニューから「新規プライベートタブ」を選びます。表示がないiOSでは、タブボタンから「プライベート」を選びます。</p>
-        <p><strong>3.</strong> 新しいプライベートタブのアドレス欄へ貼り付けて開きます。</p>
-      </section>
-
       <div class="fallback">
         <div class="actions">
-          <button id="copy-button" class="copy-button" type="button">正規URLをコピー</button>
-          <a id="launch-link" class="launch-link" target="_top" href="https://script.google.com/macros/s/AKfycbzwYFowd7PcatCXrYhXVBgIKj7T59_HPa6_99UzvdxgSIUUyUoxuoVD2ti69U79EkjiiA/exec">在庫管理を開く</a>
+          <a id="launch-link" class="launch-link" target="_top" href="https://shinsei-inventory-hanno.shimazaaaaaaa.chatgpt.site">在庫管理を開く</a>
         </div>
-        <p id="copy-result" class="copy-result" aria-live="polite"></p>
         <p class="note">ボタンを押す前に、LINE WORKSではなくSafariまたはChromeで表示していることを確認してください。</p>
       </div>
     </section>
@@ -105,11 +89,7 @@
 
   <script>
     (() => {
-      const GAS_URL = "https://script.google.com/macros/s/AKfycbzwYFowd7PcatCXrYhXVBgIKj7T59_HPa6_99UzvdxgSIUUyUoxuoVD2ti69U79EkjiiA/exec";
       const status = document.getElementById("status");
-      const iosHelp = document.getElementById("ios-help");
-      const copyButton = document.getElementById("copy-button");
-      const copyResult = document.getElementById("copy-result");
 
       function hasLineWorksQueryMarker(search) {
         try {
@@ -132,48 +112,12 @@
       }
 
       function prepareLauncher() {
-        const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-        iosHelp.hidden = !isiOS;
-
-        if (isiOS) {
-          status.textContent = "iPhoneでは「正規URLをコピー」し、Safariの新規プライベートタブへ貼り付けてください。";
-          return;
-        }
         if (isInAppWebView(navigator.userAgent, window.location.search)) {
           status.textContent = "先にLINE WORKSの右上メニューから「ブラウザで開く」を選んでください。";
           return;
         }
         status.textContent = "SafariまたはChromeで表示中です。下の「在庫管理を開く」を押してください。";
       }
-
-      function fallbackCopy() {
-        const field = document.createElement("textarea");
-        field.value = GAS_URL;
-        field.setAttribute("readonly", "");
-        field.style.position = "fixed";
-        field.style.opacity = "0";
-        document.body.appendChild(field);
-        field.select();
-        field.setSelectionRange(0, GAS_URL.length);
-        const copied = document.execCommand("copy");
-        field.remove();
-        if (!copied) throw new Error("copy failed");
-      }
-
-      async function copyGasUrl() {
-        try {
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(GAS_URL);
-          } else {
-            fallbackCopy();
-          }
-          copyResult.textContent = "コピーしました。Safariの新規プライベートタブへ貼り付けてください。";
-        } catch (_) {
-          copyResult.textContent = "コピーできませんでした。Safariのプライベートタブで、この入口ページをもう一度開いてください。";
-        }
-      }
-
-      copyButton.addEventListener("click", copyGasUrl);
 
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", prepareLauncher, { once: true });
