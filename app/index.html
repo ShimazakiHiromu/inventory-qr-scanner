@@ -88,7 +88,7 @@
       <section id="ios-help" class="ios-help" aria-labelledby="ios-title" hidden>
         <h2 id="ios-title">iPhoneで「ファイルを開くことができません」と出る場合</h2>
         <p><strong>1.</strong> 下の「正規URLをコピー」を押します。</p>
-        <p><strong>2.</strong> Safariを開き、タブボタンから「プライベート」を選びます。</p>
+        <p><strong>2.</strong> Safariを開き、メニューから「新規プライベートタブ」を選びます。表示がないiOSでは、タブボタンから「プライベート」を選びます。</p>
         <p><strong>3.</strong> 新しいプライベートタブのアドレス欄へ貼り付けて開きます。</p>
       </section>
 
@@ -136,7 +136,7 @@
         iosHelp.hidden = !isiOS;
 
         if (isiOS) {
-          status.textContent = "iPhoneでは「正規URLをコピー」し、Safariのプライベートタブへ貼り付けてください。";
+          status.textContent = "iPhoneでは「正規URLをコピー」し、Safariの新規プライベートタブへ貼り付けてください。";
           return;
         }
         if (isInAppWebView(navigator.userAgent, window.location.search)) {
@@ -167,7 +167,7 @@
           } else {
             fallbackCopy();
           }
-          copyResult.textContent = "コピーしました。Safariのプライベートタブへ貼り付けてください。";
+          copyResult.textContent = "コピーしました。Safariの新規プライベートタブへ貼り付けてください。";
         } catch (_) {
           copyResult.textContent = "コピーできませんでした。Safariのプライベートタブで、この入口ページをもう一度開いてください。";
         }
